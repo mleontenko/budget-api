@@ -77,3 +77,18 @@ class CategoryDetailView(RetrieveUpdateDestroyAPIView):
         return Response({
             'message': f'Category "{category_name}" deleted successfully'
         }, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def category_types(request):
+    """Get available category types"""
+    types = [
+        {'value': choice[0], 'label': choice[1]} 
+        for choice in Category.CategoryType.choices
+    ]
+    
+    return Response({
+        'message': 'Category types retrieved successfully',
+        'types': types
+    }, status=status.HTTP_200_OK)
