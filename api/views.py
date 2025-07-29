@@ -6,7 +6,7 @@ from rest_framework.views import APIView
 from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
 from django.shortcuts import get_object_or_404
 from .models import Category
-from .serializers import CategorySerializer
+from .serializers import CategorySerializer, ExpenseSerializer
 
 
 class CategoryListCreateView(ListCreateAPIView):
@@ -92,3 +92,73 @@ def category_types(request):
         'message': 'Category types retrieved successfully',
         'types': types
     }, status=status.HTTP_200_OK)
+
+
+class ExpenseListCreateView(ListCreateAPIView):
+    """View for listing and creating expenses"""
+    serializer_class = ExpenseSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        """Return expenses for the authenticated user"""
+        return self.request.user.expenses.all()
+    
+    def get(self, request, *args, **kwargs):
+        """Get all expenses for the authenticated user"""
+        expenses = self.get_queryset()
+        serializer = self.get_serializer(expenses, many=True)
+        return Response({
+            'message': 'Expenses retrieved successfully',
+            'expenses': serializer.data
+        }, status=status.HTTP_200_OK)
+    
+    def post(self, request, *args, **kwargs):
+        """Create a new expense for the authenticated user"""
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid():
+            expense = serializer.save()
+            return Response({
+                'message': 'Expense created successfully',
+                'expense': ExpenseSerializer(expense).data
+            }, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ExpenseDetailView(RetrieveUpdateDestroyAPIView):
+    """View for retrieving, updating, and deleting a specific expense"""
+    serializer_class = ExpenseSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        """Return expenses for the authenticated user"""
+        return self.request.user.expenses.all()
+    
+    def get(self, request, *args, **kwargs):
+        """Get a specific expense"""
+        expense = self.get_object()
+        serializer = self.get_serializer(expense)
+        return Response({
+            'message': 'Expense retrieved successfully',
+            'expense': serializer.data
+        }, status=status.HTTP_200_OK)
+    
+    def put(self, request, *args, **kwargs):
+        """Update a specific expense"""
+        expense = self.get_object()
+        serializer = self.get_serializer(expense, data=request.data)
+        if serializer.is_valid():
+            updated_expense = serializer.save()
+            return Response({
+                'message': 'Expense updated successfully',
+                'expense': ExpenseSerializer(updated_expense).data
+            }, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    def delete(self, request, *args, **kwargs):
+        """Delete a specific expense"""
+        expense = self.get_object()
+        expense_description = expense.description
+        expense.delete()
+        return Response({
+            'message': f'Expense "{expense_description}" deleted successfully'
+        }, status=status.HTTP_200_OK)

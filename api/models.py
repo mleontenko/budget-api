@@ -31,3 +31,36 @@ class Category(models.Model):
     
     def __str__(self):
         return f"{self.name} ({self.type}) - {self.user.username}"
+
+
+class Expense(models.Model):
+    """Expense model for tracking user expenses"""
+    
+    id = models.AutoField(primary_key=True)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    category = models.ForeignKey(
+        Category,
+        on_delete=models.CASCADE,
+        related_name='expenses'
+    )
+    description = models.CharField(max_length=255)
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='expenses'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Expense"
+        verbose_name_plural = "Expenses"
+    
+    def __str__(self):
+        return f"${self.amount} - {self.description} ({self.category.name})"
+    
+    def save(self, *args, **kwargs):
+        """Ensure amount is always positive"""
+        if self.amount < 0:
+            self.amount = abs(self.amount)
+        super().save(*args, **kwargs)
