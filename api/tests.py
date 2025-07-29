@@ -61,3 +61,85 @@ class CategoryCRUDTestCase(APITestCase):
         # Verify category is deleted
         response = self.client.get(category_detail_url)
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+
+class ExpenseCRUDTestCase(APITestCase):
+    """Simple CRUD test for Expense model"""
+
+    def setUp(self):
+        """Set up test data"""
+        # Create test user
+        self.user = User.objects.create_user(
+            username='testuser',
+            password='testpass123',
+            email='test@example.com'
+        )
+        self.token = Token.objects.create(user=self.user)
+        
+        # Create a test category
+        self.category = Category.objects.create(
+            name='Food',
+            type='expense',
+            user=self.user
+        )
+        
+        # Set up URLs
+        self.expense_list_url = reverse('api:expense-list-create')
+        
+        # Test expense data
+        self.expense_data = {
+            'amount': 25.50,
+            'category': self.category.id,
+            'description': 'Lunch at restaurant'
+        }
+
+    def test_create_expense(self):
+        """Test creating an expense"""
+        self.client.credentials(HTTP_AUTHORIZATION=f'Token {self.token.key}')
+        response = self.client.post(self.expense_list_url, self.expense_data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertIn('expense', response.data)
+
+    def test_read_expense(self):
+        """Test reading an expense"""
+        self.client.credentials(HTTP_AUTHORIZATION=f'Token {self.token.key}')
+        
+        # Create first
+        response = self.client.post(self.expense_list_url, self.expense_data, format='json')
+        expense_id = response.data['expense']['id']
+        
+        # Then read
+        expense_detail_url = reverse('api:expense-detail', kwargs={'pk': expense_id})
+        response = self.client.get(expense_detail_url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_update_expense(self):
+        """Test updating an expense"""
+        self.client.credentials(HTTP_AUTHORIZATION=f'Token {self.token.key}')
+        
+        # Create first
+        response = self.client.post(self.expense_list_url, self.expense_data, format='json')
+        expense_id = response.data['expense']['id']
+        
+        # Then update
+        expense_detail_url = reverse('api:expense-detail', kwargs={'pk': expense_id})
+        update_data = {
+            'amount': 35.00, 
+            'description': 'Dinner at restaurant',
+            'category': self.category.id
+        }
+        response = self.client.put(expense_detail_url, update_data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_delete_expense(self):
+        """Test deleting an expense"""
+        self.client.credentials(HTTP_AUTHORIZATION=f'Token {self.token.key}')
+        
+        # Create first
+        response = self.client.post(self.expense_list_url, self.expense_data, format='json')
+        expense_id = response.data['expense']['id']
+        
+        # Then delete
+        expense_detail_url = reverse('api:expense-detail', kwargs={'pk': expense_id})
+        response = self.client.delete(expense_detail_url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
