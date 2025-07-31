@@ -1,12 +1,13 @@
+from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.views import APIView
 from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
 from django.shortcuts import get_object_or_404
 from .models import Category
 from .serializers import CategorySerializer, ExpenseSerializer
+from datetime import datetime
 
 
 class CategoryListCreateView(ListCreateAPIView):
@@ -95,20 +96,49 @@ def category_types(request):
 
 
 class ExpenseListCreateView(ListCreateAPIView):
-    """View for listing and creating expenses"""
+    """View for listing and creating expenses with filtering"""
     serializer_class = ExpenseSerializer
     permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
-        """Return expenses for the authenticated user"""
-        return self.request.user.expenses.all()
+        """Return filtered expenses for the authenticated user"""
+        queryset = self.request.user.expenses.all()
+        
+        # Build filters dictionary
+        filters = {}
+        
+        # Category filter
+        if self.request.query_params.get('category'):
+            filters['category_id'] = self.request.query_params.get('category')
+        
+        # Price filters
+        if self.request.query_params.get('min_price'):
+            filters['amount__gte'] = self.request.query_params.get('min_price')
+        if self.request.query_params.get('max_price'):
+            filters['amount__lte'] = self.request.query_params.get('max_price')
+        
+        # Date filters
+        if self.request.query_params.get('start_date'):
+            filters['created_at__date__gte'] = self.request.query_params.get('start_date')
+        if self.request.query_params.get('end_date'):
+            filters['created_at__date__lte'] = self.request.query_params.get('end_date')
+        
+        # Apply allfilters at once
+        return queryset.filter(**filters).order_by('-created_at')
     
     def get(self, request, *args, **kwargs):
-        """Get all expenses for the authenticated user"""
+        """Get filtered expenses for the authenticated user"""
         expenses = self.get_queryset()
         serializer = self.get_serializer(expenses, many=True)
+        
+        # Get applied filters
+        filters_applied = {k: v for k, v in request.query_params.items() 
+                          if k in ['category', 'min_price', 'max_price', 'start_date', 'end_date']}
+        
         return Response({
             'message': 'Expenses retrieved successfully',
+            'filters_applied': filters_applied,
+            'total_count': expenses.count(),
             'expenses': serializer.data
         }, status=status.HTTP_200_OK)
     
