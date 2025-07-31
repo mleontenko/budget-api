@@ -23,7 +23,8 @@ def register(request):
             'user': {
                 'id': user.id,
                 'username': user.username,
-                'email': user.email
+                'email': user.email,
+                'starting_balance': user.profile.starting_balance
             },
             'token': token.key
         }, status=status.HTTP_201_CREATED)
@@ -49,7 +50,8 @@ def login(request):
                 'user': {
                     'id': user.id,
                     'username': user.username,
-                    'email': user.email
+                    'email': user.email,
+                    'starting_balance': user.profile.starting_balance
                 },
                 'token': token.key
             }, status=status.HTTP_200_OK)
@@ -91,6 +93,7 @@ def profile(request):
             'id': user.id,
             'username': user.username,
             'email': user.email,
+            'starting_balance': user.profile.starting_balance,
             'date_joined': user.date_joined
         }
     }, status=status.HTTP_200_OK)
