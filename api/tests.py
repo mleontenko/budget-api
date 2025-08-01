@@ -4,7 +4,7 @@ from django.urls import reverse
 from rest_framework.test import APITestCase, APIClient
 from rest_framework import status
 from rest_framework.authtoken.models import Token
-from .models import Category
+from .models import Category, Expense
 
 
 class CategoryCRUDTestCase(APITestCase):
@@ -143,3 +143,46 @@ class ExpenseCRUDTestCase(APITestCase):
         expense_detail_url = reverse('api:expense-detail', kwargs={'pk': expense_id})
         response = self.client.delete(expense_detail_url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+
+class ExpenseFilterTestCase(APITestCase):
+    """Simple test for expense filtering"""
+
+    def setUp(self):
+        """Set up minimal test data"""
+        # Create user and token
+        self.user = User.objects.create_user(username='testuser', password='testpass123')
+        self.token = Token.objects.create(user=self.user)
+        
+        # Create one category
+        self.category = Category.objects.create(name='Food', type='expense', user=self.user)
+        
+        # Create one expense
+        self.expense = Expense.objects.create(
+            amount=25.50,
+            category=self.category,
+            description='Lunch',
+            user=self.user
+        )
+        
+        # Set up client
+        self.client.credentials(HTTP_AUTHORIZATION=f'Token {self.token.key}')
+        self.url = reverse('api:expense-list-create')
+
+    def test_filter_by_category(self):
+        """Test category filter"""
+        response = self.client.get(f'{self.url}?category={self.category.id}')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('category', response.data['filters_applied'])
+
+    def test_filter_by_price(self):
+        """Test price filter"""
+        response = self.client.get(f'{self.url}?min_price=20')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('min_price', response.data['filters_applied'])
+
+    def test_no_filters(self):
+        """Test no filters"""
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data['filters_applied']), 0)
