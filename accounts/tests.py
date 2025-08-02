@@ -5,6 +5,7 @@ from rest_framework.test import APITestCase, APIClient
 from rest_framework import status
 from rest_framework.authtoken.models import Token
 import json
+from api.models import Category
 
 
 class AccountsTestCase(APITestCase):
@@ -368,3 +369,68 @@ class TokenTestCase(TestCase):
         # Verify token is deleted
         with self.assertRaises(Token.DoesNotExist):
             Token.objects.get(user=self.user)
+
+
+class UserProfileTestCase(TestCase):
+    """Test that UserProfile and default categories are created for new users"""
+    
+    def test_user_profile_creation(self):
+        """Test that UserProfile is created when a new user is created"""
+        # Create a new user
+        user = User.objects.create_user(
+            username='testuser',
+            password='testpass123',
+            email='test@example.com'
+        )
+        
+        # Check that UserProfile was created
+        self.assertTrue(hasattr(user, 'profile'))
+        self.assertEqual(user.profile.starting_balance, 10000.00)
+    
+    def test_default_categories_creation(self):
+        """Test that 4 default categories are created for new users"""
+        # Create a new user
+        user = User.objects.create_user(
+            username='testuser',
+            password='testpass123',
+            email='test@example.com'
+        )
+        
+        # Check that exactly 4 categories were created
+        categories = Category.objects.filter(user=user)
+        self.assertEqual(categories.count(), 4)
+        
+        # Check that the correct categories exist
+        category_names = list(categories.values_list('name', 'type'))
+        expected_categories = [
+            ('Car', 'expense'),
+            ('Food', 'expense'),
+            ('Clothes', 'expense'),
+            ('Salary', 'income'),
+        ]
+        
+        # Sort both lists for comparison
+        category_names.sort()
+        expected_categories.sort()
+        
+        self.assertEqual(category_names, expected_categories)
+    
+    def test_categories_belong_to_user(self):
+        """Test that created categories belong to the correct user"""
+        # Create two users
+        user1 = User.objects.create_user(username='user1', password='pass1')
+        user2 = User.objects.create_user(username='user2', password='pass2')
+        
+        # Check that each user has their own categories
+        user1_categories = Category.objects.filter(user=user1)
+        user2_categories = Category.objects.filter(user=user2)
+        
+        self.assertEqual(user1_categories.count(), 4)
+        self.assertEqual(user2_categories.count(), 4)
+        
+        # Check that categories are isolated between users
+        user1_category_ids = set(user1_categories.values_list('id', flat=True))
+        user2_category_ids = set(user2_categories.values_list('id', flat=True))
+        
+        # Categories should be different between users
+        self.assertEqual(len(user1_category_ids.intersection(user2_category_ids)), 0)
