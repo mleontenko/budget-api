@@ -22,9 +22,28 @@ class UserProfile(models.Model):
 
 @receiver(post_save, sender=User)
 def create_user_profile(sender, instance, created, **kwargs):
-    """Create UserProfile when a new User is created"""
+    """Create UserProfile and default categories when a new User is created"""
     if created:
+        # Create user profile
         UserProfile.objects.create(user=instance)
+        
+        # Import Category model here to avoid circular imports
+        from api.models import Category
+        
+        # Create default categories
+        default_categories = [
+            {'name': 'Car', 'type': 'expense'},
+            {'name': 'Food', 'type': 'expense'},
+            {'name': 'Clothes', 'type': 'expense'},
+            {'name': 'Salary', 'type': 'income'},
+        ]
+        
+        for category_data in default_categories:
+            Category.objects.create(
+                user=instance,
+                name=category_data['name'],
+                type=category_data['type']
+            )
 
 
 @receiver(post_save, sender=User)
