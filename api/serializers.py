@@ -26,7 +26,7 @@ class ExpenseSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Expense
-        fields = ['id', 'amount', 'category', 'description', 'user', 'created_at', 'updated_at']
+        fields = ['id', 'amount', 'category', 'description', 'date', 'user', 'created_at', 'updated_at']
         read_only_fields = ['id', 'user', 'created_at', 'updated_at']
     
     def create(self, validated_data):
@@ -39,6 +39,7 @@ class ExpenseSerializer(serializers.ModelSerializer):
         instance.amount = validated_data.get('amount', instance.amount)
         instance.category = validated_data.get('category', instance.category)
         instance.description = validated_data.get('description', instance.description)
+        instance.date = validated_data.get('date', instance.date)
         instance.save()
         return instance
     
@@ -53,4 +54,11 @@ class ExpenseSerializer(serializers.ModelSerializer):
         user = self.context['request'].user
         if value.user != user:
             raise serializers.ValidationError("You can only use your own categories")
+        return value
+    
+    def validate_date(self, value):
+        """Validate that date is not in the future"""
+        from datetime import date
+        if value > date.today():
+            raise serializers.ValidationError("Date cannot be in the future")
         return value

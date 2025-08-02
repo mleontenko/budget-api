@@ -44,6 +44,7 @@ class Expense(models.Model):
         related_name='expenses'
     )
     description = models.CharField(max_length=255)
+    date = models.DateField()  # Date when the expense occurred
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
@@ -57,7 +58,7 @@ class Expense(models.Model):
         verbose_name_plural = "Expenses"
     
     def __str__(self):
-        return f"${self.amount} - {self.description} ({self.category.name})"
+        return f"${self.amount} - {self.description} ({self.category.name}) - {self.date}"
     
     def save(self, *args, **kwargs):
         """Ensure amount is always positive"""

@@ -11,8 +11,8 @@ class CategoryAdmin(admin.ModelAdmin):
 
 @admin.register(Expense)
 class ExpenseAdmin(admin.ModelAdmin):
-    list_display = ['amount', 'description', 'category', 'user', 'created_at']
-    list_filter = ['category', 'created_at', 'updated_at']
+    list_display = ['amount', 'description', 'category', 'date', 'user', 'created_at']
+    list_filter = ['category', 'date', 'created_at', 'updated_at']
     search_fields = ['description', 'user__username', 'category__name']
     readonly_fields = ['id', 'created_at', 'updated_at']
-    ordering = ['-created_at']
+    ordering = ['-date']

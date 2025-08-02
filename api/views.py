@@ -120,11 +120,11 @@ class ExpenseListCreateView(ListCreateAPIView):
         if self.request.query_params.get('max_price'):
             filters['amount__lte'] = self.request.query_params.get('max_price')
         
-        # Date filters
+        # Date filters - using date field
         if self.request.query_params.get('start_date'):
-            filters['created_at__date__gte'] = self.request.query_params.get('start_date')
+            filters['date__gte'] = self.request.query_params.get('start_date')
         if self.request.query_params.get('end_date'):
-            filters['created_at__date__lte'] = self.request.query_params.get('end_date')
+            filters['date__lte'] = self.request.query_params.get('end_date')
         
         # Apply allfilters at once
         return queryset.filter(**filters).order_by('-created_at')
@@ -235,15 +235,15 @@ def custom_period_balance(request):
     starting_balance = user.profile.starting_balance
     
     # Calculate balance at start of period
-    expenses_before_period = user.expenses.filter(created_at__lt=start_date)
+    expenses_before_period = user.expenses.filter(date__lt=start_date.date())
     income_before = expenses_before_period.filter(category__type='income').aggregate(total=Sum('amount'))['total'] or 0
     expenses_before = expenses_before_period.filter(category__type='expense').aggregate(total=Sum('amount'))['total'] or 0
     balance_at_start = starting_balance + income_before - expenses_before
     
     # Calculate period expenses
     period_expenses = user.expenses.filter(
-        created_at__gte=start_date,
-        created_at__lte=end_date
+        date__gte=start_date.date(),
+        date__lte=end_date.date()
     )
     
     period_income = period_expenses.filter(category__type='income').aggregate(total=Sum('amount'))['total'] or 0

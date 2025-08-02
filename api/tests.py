@@ -86,11 +86,12 @@ class ExpenseCRUDTestCase(APITestCase):
         # Set up URLs
         self.expense_list_url = reverse('api:expense-list-create')
         
-        # Test expense data
+        # Test expense data with date
         self.expense_data = {
             'amount': 25.50,
             'category': self.category.id,
-            'description': 'Lunch at restaurant'
+            'description': 'Lunch at restaurant',
+            'date': '2024-08-01'
         }
 
     def test_create_expense(self):
@@ -126,7 +127,8 @@ class ExpenseCRUDTestCase(APITestCase):
         update_data = {
             'amount': 35.00, 
             'description': 'Dinner at restaurant',
-            'category': self.category.id
+            'category': self.category.id,
+            'date': '2024-08-02'
         }
         response = self.client.put(expense_detail_url, update_data, format='json')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -157,11 +159,12 @@ class ExpenseFilterTestCase(APITestCase):
         # Create one category
         self.category = Category.objects.create(name='Food', type='expense', user=self.user)
         
-        # Create one expense
+        # Create one expense with date
         self.expense = Expense.objects.create(
             amount=25.50,
             category=self.category,
             description='Lunch',
+            date='2024-08-01',
             user=self.user
         )
         
@@ -180,6 +183,13 @@ class ExpenseFilterTestCase(APITestCase):
         response = self.client.get(f'{self.url}?min_price=20')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn('min_price', response.data['filters_applied'])
+
+    def test_filter_by_date(self):
+        """Test date filter"""
+        response = self.client.get(f'{self.url}?start_date=2024-08-01&end_date=2024-08-31')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('start_date', response.data['filters_applied'])
+        self.assertIn('end_date', response.data['filters_applied'])
 
     def test_no_filters(self):
         """Test no filters"""
