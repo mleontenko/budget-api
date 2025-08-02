@@ -8,6 +8,9 @@ from django.shortcuts import get_object_or_404
 from .models import Category
 from .serializers import CategorySerializer, ExpenseSerializer
 from datetime import datetime
+from django.db.models import Sum
+from django.utils import timezone
+from datetime import timedelta
 
 
 class CategoryListCreateView(ListCreateAPIView):
@@ -192,3 +195,86 @@ class ExpenseDetailView(RetrieveUpdateDestroyAPIView):
         return Response({
             'message': f'Expense "{expense_description}" deleted successfully'
         }, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def custom_period_balance(request):
+    """Get balance and expenses for a custom date range"""
+    user = request.user
+    start_date_str = request.query_params.get('start_date')
+    end_date_str = request.query_params.get('end_date')
+    
+    # Validate required parameters
+    if not start_date_str or not end_date_str:
+        return Response({
+            'error': 'Both start_date and end_date parameters are required (YYYY-MM-DD format)'
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    try:
+        # Parse dates
+        start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
+        end_date = datetime.strptime(end_date_str, '%Y-%m-%d')
+        
+        # Make them timezone-aware
+        start_date = timezone.make_aware(start_date)
+        end_date = timezone.make_aware(end_date)
+        
+        # Validate date order
+        if start_date > end_date:
+            return Response({
+                'error': 'start_date must be before or equal to end_date'
+            }, status=status.HTTP_400_BAD_REQUEST)
+            
+    except ValueError:
+        return Response({
+            'error': 'Invalid date format. Use YYYY-MM-DD (e.g., 2024-01-15)'
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    # Get user's starting balance
+    starting_balance = user.profile.starting_balance
+    
+    # Calculate balance at start of period
+    expenses_before_period = user.expenses.filter(created_at__lt=start_date)
+    income_before = expenses_before_period.filter(category__type='income').aggregate(total=Sum('amount'))['total'] or 0
+    expenses_before = expenses_before_period.filter(category__type='expense').aggregate(total=Sum('amount'))['total'] or 0
+    balance_at_start = starting_balance + income_before - expenses_before
+    
+    # Calculate period expenses
+    period_expenses = user.expenses.filter(
+        created_at__gte=start_date,
+        created_at__lte=end_date
+    )
+    
+    period_income = period_expenses.filter(category__type='income').aggregate(total=Sum('amount'))['total'] or 0
+    period_expenses_amount = period_expenses.filter(category__type='expense').aggregate(total=Sum('amount'))['total'] or 0
+    period_net = period_income - period_expenses_amount
+    
+    # Calculate balance at end of period
+    balance_at_end = balance_at_start + period_net
+    
+    # Get transaction details for the period
+    income_transactions = period_expenses.filter(category__type='income').count()
+    expense_transactions = period_expenses.filter(category__type='expense').count()
+    
+    return Response({
+        'message': 'Custom period balance calculated successfully',
+        'period': {
+            'start_date': start_date_str,
+            'end_date': end_date_str,
+            'days': (end_date - start_date).days + 1
+        },
+        'balance': {
+            'balance_at_start_of_period': float(balance_at_start),
+            'balance_at_end_of_period': float(balance_at_end),
+            'change_during_period': float(period_net)
+        },
+        'period_summary': {
+            'total_income': float(period_income),
+            'total_expenses': float(period_expenses_amount),
+            'net_amount': float(period_net),
+            'income_transactions': income_transactions,
+            'expense_transactions': expense_transactions,
+            'total_transactions': period_expenses.count()
+        }
+    }, status=status.HTTP_200_OK)

@@ -12,4 +12,7 @@ urlpatterns = [
     # Expense endpoints
     path('expenses/', views.ExpenseListCreateView.as_view(), name='expense-list-create'),
     path('expenses/<int:pk>/', views.ExpenseDetailView.as_view(), name='expense-detail'),
+    
+    # Balance endpoint
+    path('expenses/balance/', views.custom_period_balance, name='custom-period-balance'),
 ] 
